@@ -6,7 +6,7 @@ from IPython import get_ipython
 import os
 
 sns.set_style("whitegrid")
-# sns.set_palette("coolwarm")
+
 
 def is_jupyter_notebook():
     """
@@ -27,12 +27,9 @@ def is_jupyter_notebook():
         return False  # Probably standard Python interpreter
 
 
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import os
-
-def categorical_feature(df, feature, target, show_plot=True, save_plot=False, plot_dir="./plots"):
+def categorical_feature(
+    df, feature, target, show_plot=True, save_plot=False, plot_dir="./plots"
+):
     """
     Calculates and visualizes the distribution of a categorical feature with respect to a target variable.
 
@@ -64,25 +61,37 @@ def categorical_feature(df, feature, target, show_plot=True, save_plot=False, pl
 
     # Calculate counts and percentages for each target class
     counts_per_class = df.groupby([feature, target]).size().unstack(fill_value=0)
-    percentages_per_class_of_total = counts_per_class.div(len(df)) * 100  # Percentages relative to total
-    percentages_within_feature = counts_per_class.div(counts_per_class.sum(axis=1), axis=0) * 100  # Percentages within feature
+    percentages_per_class_of_total = (
+        counts_per_class.div(len(df)) * 100
+    )  # Percentages relative to total
+    percentages_within_feature = (
+        counts_per_class.div(counts_per_class.sum(axis=1), axis=0) * 100
+    )  # Percentages within feature
 
     # Combine all into a single DataFrame
-    category_distribution = pd.DataFrame({
-        'Total Count': total_counts,
-        'Total Percentage': total_percentages,
-    })
+    category_distribution = pd.DataFrame(
+        {
+            "Total Count": total_counts,
+            "Total Percentage": total_percentages,
+        }
+    )
 
     # Add percentages per class relative to total
     for class_value in counts_per_class.columns:
-        category_distribution[f"{class_value} of Total (%)"] = percentages_per_class_of_total[class_value]
+        category_distribution[f"{class_value} of Total (%)"] = (
+            percentages_per_class_of_total[class_value]
+        )
 
     # Add percentages per class within feature category
     for class_value in counts_per_class.columns:
-        category_distribution[f"{class_value} within {feature} (%)"] = percentages_within_feature[class_value]
+        category_distribution[f"{class_value} within {feature} (%)"] = (
+            percentages_within_feature[class_value]
+        )
 
     # Sort the DataFrame by total count
-    category_distribution = category_distribution.sort_values('Total Count', ascending=False)
+    category_distribution = category_distribution.sort_values(
+        "Total Count", ascending=False
+    )
 
     # Plotting
     plt.figure(figsize=(12, 6))
@@ -91,11 +100,11 @@ def categorical_feature(df, feature, target, show_plot=True, save_plot=False, pl
         x=feature,
         hue=target,
         order=category_distribution.index,
-        palette="coolwarm"
+        palette="coolwarm",
     )
     plt.title(f"Distribution of '{feature}' by '{target}'")
     plt.xlabel(feature)
-    plt.ylabel('Count')
+    plt.ylabel("Count")
     plt.grid(axis="y", linestyle="--", linewidth=0.5)
     plt.xticks(rotation=45)
 
@@ -107,7 +116,7 @@ def categorical_feature(df, feature, target, show_plot=True, save_plot=False, pl
         if not os.path.exists(plot_dir):
             os.makedirs(plot_dir)
         plot_filename = f"{feature}-{target}-distribution.png"
-        plt.savefig(os.path.join(plot_dir, plot_filename), bbox_inches='tight')
+        plt.savefig(os.path.join(plot_dir, plot_filename), bbox_inches="tight")
         print(f"Plot saved to {os.path.join(plot_dir, plot_filename)}")
 
     plt.close()  # Close the figure to free memory
@@ -123,7 +132,7 @@ def numerical_feature(
     bins="sturges",
     show_plot=True,
     save_plot=False,
-    plot_dir="./plots"
+    plot_dir="./plots",
 ):
     """
     Analyzes a numerical feature in a DataFrame.
@@ -150,9 +159,13 @@ def numerical_feature(
 
     # Validate input columns
     if feature not in df.columns:
-        raise ValueError(f"Feature '{feature}' not found in DataFrame columns: {list(df.columns)}")
+        raise ValueError(
+            f"Feature '{feature}' not found in DataFrame columns: {list(df.columns)}"
+        )
     if target and target not in df.columns:
-        raise ValueError(f"Target '{target}' not found in DataFrame columns: {list(df.columns)}")
+        raise ValueError(
+            f"Target '{target}' not found in DataFrame columns: {list(df.columns)}"
+        )
 
     # Calculate the number of bins if a method is provided
     if isinstance(bins, str):
@@ -173,7 +186,9 @@ def numerical_feature(
         else:
             raise ValueError(f"Unknown binning method: '{bins}'")
     elif not isinstance(bins, int):
-        raise TypeError("Bins must be an integer or one of the following strings: 'sturges', 'rice', 'scott', 'fd'.")
+        raise TypeError(
+            "Bins must be an integer or one of the following strings: 'sturges', 'rice', 'scott', 'fd'."
+        )
 
     # Create the figure and subplots
     fig, ax = plt.subplots(2, 1, figsize=figsize, sharex=True)
@@ -187,7 +202,7 @@ def numerical_feature(
         kde=True,
         ax=ax[0],
         palette="coolwarm",
-        element="bars"
+        element="bars",
     )
     ax[0].set_title(f"Distribution of '{feature}'")
     ax[0].set_ylabel("Frequency")
@@ -199,22 +214,16 @@ def numerical_feature(
             data=df,
             x=feature,
             y=target,
-            orient='h',
+            orient="h",
             ax=ax[1],
             palette="coolwarm",
             hue=target,
-            legend=False
+            legend=False,
         )
         ax[1].set_title(f"Box Plot of '{feature}' by '{target}'")
         ax[1].set_ylabel(target)
     else:
-        sns.boxplot(
-            data=df,
-            x=feature,
-            orient='h',
-            ax=ax[1],
-            palette="coolwarm"
-        )
+        sns.boxplot(data=df, x=feature, orient="h", ax=ax[1], palette="coolwarm")
         ax[1].set_title(f"Box Plot of '{feature}'")
         ax[1].set_ylabel("")
 
@@ -231,8 +240,12 @@ def numerical_feature(
     if save_plot:
         if not os.path.exists(plot_dir):
             os.makedirs(plot_dir)
-        plot_filename = f"{feature}_distribution.png" if not target else f"{feature}_by_{target}_distribution.png"
-        plt.savefig(os.path.join(plot_dir, plot_filename), bbox_inches='tight')
+        plot_filename = (
+            f"{feature}_distribution.png"
+            if not target
+            else f"{feature}_by_{target}_distribution.png"
+        )
+        plt.savefig(os.path.join(plot_dir, plot_filename), bbox_inches="tight")
         print(f"Plot saved to {os.path.join(plot_dir, plot_filename)}")
 
     plt.close()  # Close the figure to free memory
@@ -285,11 +298,6 @@ def numerical_feature(
     return outliers_df, summary_df
 
 
-
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-
 def missing_values(df, include_all=False, visualize=False, figsize=(10, 6)):
     """
     Generates a summary of missing values in the DataFrame.
@@ -310,31 +318,33 @@ def missing_values(df, include_all=False, visualize=False, figsize=(10, 6)):
     data_types = df.dtypes
 
     # Combine into a DataFrame
-    missing_summary = pd.DataFrame({
-        'Missing Count': missing_count,
-        'Missing Percentage (%)': missing_percentage,
-        'Data Type': data_types
-    })
+    missing_summary = pd.DataFrame(
+        {
+            "Missing Count": missing_count,
+            "Missing Percentage (%)": missing_percentage,
+            "Data Type": data_types,
+        }
+    )
 
     # Filter out columns with no missing values if include_all is False
     if not include_all:
-        missing_summary = missing_summary[missing_summary['Missing Count'] > 0]
+        missing_summary = missing_summary[missing_summary["Missing Count"] > 0]
 
     # Sort by Missing Percentage in descending order
-    missing_summary = missing_summary.sort_values(by='Missing Percentage (%)', ascending=False)
+    missing_summary = missing_summary.sort_values(
+        by="Missing Percentage (%)", ascending=False
+    )
 
     # Visualize missing data if requested
     if visualize and not missing_summary.empty:
         plt.figure(figsize=figsize)
         sns.barplot(
-            x=missing_summary.index,
-            y='Missing Percentage (%)',
-            data=missing_summary
+            x=missing_summary.index, y="Missing Percentage (%)", data=missing_summary
         )
-        plt.xticks(rotation=45, ha='right')
-        plt.title('Missing Data Percentage by Column')
-        plt.ylabel('Missing Percentage (%)')
-        plt.xlabel('Columns')
+        plt.xticks(rotation=45, ha="right")
+        plt.title("Missing Data Percentage by Column")
+        plt.ylabel("Missing Percentage (%)")
+        plt.xlabel("Columns")
         plt.tight_layout()
         plt.show()
 
