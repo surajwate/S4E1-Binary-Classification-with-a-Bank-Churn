@@ -115,84 +115,133 @@ def categorical_feature(df, feature, target, show_plot=True, save_plot=False, pl
     return category_distribution
 
 
-
-def numerical_feature(df, feature, target=None, figsize=(15, 6), bins="sturges"):
+def numerical_feature(
+    df,
+    feature,
+    target=None,
+    figsize=(15, 6),
+    bins="sturges",
+    show_plot=True,
+    save_plot=False,
+    plot_dir="./plots"
+):
     """
-    Analyzes a numerical feature in a dataframe.
+    Analyzes a numerical feature in a DataFrame.
+
     Parameters:
-    - df (pandas.DataFrame): The dataframe containing the data.
+    - df (pd.DataFrame): The DataFrame containing the data.
     - feature (str): The name of the numerical feature to analyze.
     - target (str, optional): The name of the target column for grouping the analysis. Default is None.
     - figsize (tuple, optional): The size of the figure. Default is (15, 6).
-    - bins (int, str, optional): The number of bins for the histogram or the method to calculate it. Default is 'sturges'.
+    - bins (int or str, optional): The number of bins for the histogram or the method to calculate it. Options are:
+        - 'sturges' (default)
+        - 'rice'
+        - 'scott'
+        - 'fd' (Freedman-Diaconis)
+        - an integer specifying the number of bins
+    - show_plot (bool, optional): Whether to display the plot. Default is True.
+    - save_plot (bool, optional): Whether to save the plot as a PNG file. Default is False.
+    - plot_dir (str, optional): Directory to save the plot if save_plot is True. Default is './plots'.
+
     Returns:
-    - outliers_df (pandas.DataFrame): A dataframe containing the percentage of outliers in the data.
-    - summary_df (pandas.DataFrame): A dataframe containing the overall statistics, lower outliers statistics, and upper outliers statistics.
+    - outliers_df (pd.DataFrame): A DataFrame containing the percentage of outliers in the data.
+    - summary_df (pd.DataFrame): A DataFrame containing the overall statistics, lower outliers statistics, and upper outliers statistics.
     """
 
+    # Validate input columns
     if feature not in df.columns:
-        raise ValueError(f"Column '{feature}' not found in the dataframe.")
-
+        raise ValueError(f"Feature '{feature}' not found in DataFrame columns: {list(df.columns)}")
     if target and target not in df.columns:
-        raise ValueError(f"Column '{target}' not found in the dataframe.")
+        raise ValueError(f"Target '{target}' not found in DataFrame columns: {list(df.columns)}")
 
     # Calculate the number of bins if a method is provided
     if isinstance(bins, str):
         if bins == "sturges":
-            bins = int(np.ceil(np.log2(len(df[feature])) + 1))
+            bins = int(np.ceil(np.log2(len(df[feature].dropna())) + 1))
         elif bins == "rice":
-            bins = int(np.ceil(2 * len(df[feature]) ** (1 / 3)))
+            bins = int(np.ceil(2 * len(df[feature].dropna()) ** (1 / 3)))
         elif bins == "scott":
-            bin_width = 3.5 * df[feature].std() * len(df[feature]) ** (-1 / 3)
+            bin_width = 3.5 * df[feature].std() * len(df[feature].dropna()) ** (-1 / 3)
             bins = int(np.ceil((df[feature].max() - df[feature].min()) / bin_width))
         elif bins == "fd":  # Freedman-Diaconis
             bin_width = (
                 2
                 * (df[feature].quantile(0.75) - df[feature].quantile(0.25))
-                * len(df[feature]) ** (-1 / 3)
+                * len(df[feature].dropna()) ** (-1 / 3)
             )
             bins = int(np.ceil((df[feature].max() - df[feature].min()) / bin_width))
         else:
             raise ValueError(f"Unknown binning method: '{bins}'")
+    elif not isinstance(bins, int):
+        raise TypeError("Bins must be an integer or one of the following strings: 'sturges', 'rice', 'scott', 'fd'.")
 
     # Create the figure and subplots
     fig, ax = plt.subplots(2, 1, figsize=figsize, sharex=True)
 
     # First plot: Histogram with KDE
-    sns.histplot(df, x=feature, kde=True, ax=ax[0], bins=bins, palette="coolwarm", hue=target)
-    ax[0].set_title(f"Distribution of {feature} with KDE")
+    sns.histplot(
+        data=df,
+        x=feature,
+        hue=target,
+        bins=bins,
+        kde=True,
+        ax=ax[0],
+        palette="coolwarm",
+        element="bars"
+    )
+    ax[0].set_title(f"Distribution of '{feature}'")
     ax[0].set_ylabel("Frequency")
     ax[0].grid(True, which="both", linestyle="--", linewidth=0.5)
 
     # Second plot: Boxplot of the feature by the target (if provided)
     if target:
-        # Check seaborn version to decide whether to include the 'gap' parameter
-        if sns.__version__ >= "0.13":
-            sns.boxplot(df, x=feature, ax=ax[1], hue=target, gap=0.05, palette="coolwarm")
-        else:
-            sns.boxplot(df, x=feature, ax=ax[1], hue=target, palette="coolwarm")
-        ax[1].set_title(f"Box Plot of {feature} by {target} Status")
+        sns.boxplot(
+            data=df,
+            x=feature,
+            y=target,
+            orient='h',
+            ax=ax[1],
+            palette="coolwarm",
+            hue=target,
+            legend=False
+        )
+        ax[1].set_title(f"Box Plot of '{feature}' by '{target}'")
+        ax[1].set_ylabel(target)
     else:
-        sns.boxplot(df, x=feature, ax=ax[1])
-        ax[1].set_title(f"Box Plot of {feature}")
+        sns.boxplot(
+            data=df,
+            x=feature,
+            orient='h',
+            ax=ax[1],
+            palette="coolwarm"
+        )
+        ax[1].set_title(f"Box Plot of '{feature}'")
+        ax[1].set_ylabel("")
 
-    ax[1].set_ylabel("")
     ax[1].grid(True, which="both", linestyle="--", linewidth=0.5)
+    ax[1].set_xlabel(feature)
 
     # Adjust layout for better spacing
     plt.tight_layout()
 
-    # Display the plots
-    if is_jupyter_notebook():
-        plt.show()  # Show plot if in Jupyter notebook
-    else:
-        plt.savefig(f"./plots/{feature}-{target}-boxplot.png")
+    # Show or save the plot based on parameters
+    if show_plot:
+        plt.show()
+
+    if save_plot:
+        if not os.path.exists(plot_dir):
+            os.makedirs(plot_dir)
+        plot_filename = f"{feature}_distribution.png" if not target else f"{feature}_by_{target}_distribution.png"
+        plt.savefig(os.path.join(plot_dir, plot_filename), bbox_inches='tight')
+        print(f"Plot saved to {os.path.join(plot_dir, plot_filename)}")
+
+    plt.close()  # Close the figure to free memory
 
     # Calculate overall statistics
     overall_summary = df[feature].describe().to_frame().T
     overall_summary.index = [f"{feature}_Overall"]
 
-    # Calculate the lower and upper bounds for outliers
+    # Calculate the lower and upper bounds for outliers using IQR method
     Q1 = df[feature].quantile(0.25)
     Q3 = df[feature].quantile(0.75)
     IQR = Q3 - Q1
@@ -216,19 +265,25 @@ def numerical_feature(df, feature, target=None, figsize=(15, 6), bins="sturges")
         [overall_summary, lower_outliers_summary, upper_outliers_summary]
     )
 
-    # Print the percentage of outliers in the data
-    outlier_percentage = ((len(lower_outliers) + len(upper_outliers)) / len(df)) * 100
-    lower_outliers_percentage = (len(lower_outliers) / len(df)) * 100
-    upper_outliers_percentage = (len(upper_outliers) / len(df)) * 100
+    # Calculate the percentage of outliers in the data
+    total_outliers = len(lower_outliers) + len(upper_outliers)
+    outlier_percentage = (total_outliers / len(df[feature].dropna())) * 100
+    lower_outliers_percentage = (len(lower_outliers) / len(df[feature].dropna())) * 100
+    upper_outliers_percentage = (len(upper_outliers) / len(df[feature].dropna())) * 100
+
     outliers_df = pd.DataFrame(
         {
-            "Outlier Percentage": [outlier_percentage],
-            "Lower Outliers Percentage": [lower_outliers_percentage],
-            "Upper Outliers Percentage": [upper_outliers_percentage],
+            "Total Outliers": [total_outliers],
+            "Outlier Percentage (%)": [outlier_percentage],
+            "Lower Outliers": [len(lower_outliers)],
+            "Lower Outliers Percentage (%)": [lower_outliers_percentage],
+            "Upper Outliers": [len(upper_outliers)],
+            "Upper Outliers Percentage (%)": [upper_outliers_percentage],
         }
     )
 
     return outliers_df, summary_df
+
 
 
 def missing_values(dataframe):
