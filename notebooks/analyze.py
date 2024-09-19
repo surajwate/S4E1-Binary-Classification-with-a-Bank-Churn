@@ -286,30 +286,56 @@ def numerical_feature(
 
 
 
-def missing_values(dataframe):
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def missing_values(df, include_all=False, visualize=False, figsize=(10, 6)):
     """
-    Generates a summary of missing values in the dataframe.
+    Generates a summary of missing values in the DataFrame.
 
     Parameters:
-    dataframe (pd.DataFrame): The input dataframe to analyze.
+        df (pd.DataFrame): The input DataFrame to analyze.
+        include_all (bool, optional): If True, includes columns with zero missing values in the summary. Default is False.
+        visualize (bool, optional): If True, displays a bar plot of missing percentages. Default is False.
+        figsize (tuple, optional): Figure size for the visualization. Default is (10, 6).
 
     Returns:
-    pd.DataFrame: A dataframe containing the count and percentage of missing values,
-                  along with the data type of each column that has missing values.
+        pd.DataFrame: A DataFrame containing the count and percentage of missing values,
+                      along with the data type of each column.
     """
-    missing_values_summary = pd.DataFrame(
-        {
-            "Missing Count": dataframe.isnull().sum(),
-            "Missing Percentage": (
-                dataframe.isnull().sum() / len(dataframe) * 100
-            ).round(2),
-            "Data Type": dataframe.dtypes,
-        }
-    )
+    # Calculate missing values count and percentage
+    missing_count = df.isnull().sum()
+    missing_percentage = (missing_count / len(df) * 100).round(2)
+    data_types = df.dtypes
 
-    # Filter out columns with no missing values
-    missing_values_summary = missing_values_summary[
-        missing_values_summary["Missing Count"] > 0
-    ]
+    # Combine into a DataFrame
+    missing_summary = pd.DataFrame({
+        'Missing Count': missing_count,
+        'Missing Percentage (%)': missing_percentage,
+        'Data Type': data_types
+    })
 
-    return missing_values_summary
+    # Filter out columns with no missing values if include_all is False
+    if not include_all:
+        missing_summary = missing_summary[missing_summary['Missing Count'] > 0]
+
+    # Sort by Missing Percentage in descending order
+    missing_summary = missing_summary.sort_values(by='Missing Percentage (%)', ascending=False)
+
+    # Visualize missing data if requested
+    if visualize and not missing_summary.empty:
+        plt.figure(figsize=figsize)
+        sns.barplot(
+            x=missing_summary.index,
+            y='Missing Percentage (%)',
+            data=missing_summary
+        )
+        plt.xticks(rotation=45, ha='right')
+        plt.title('Missing Data Percentage by Column')
+        plt.ylabel('Missing Percentage (%)')
+        plt.xlabel('Columns')
+        plt.tight_layout()
+        plt.show()
+
+    return missing_summary
